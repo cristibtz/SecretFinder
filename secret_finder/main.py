@@ -32,8 +32,9 @@ def clone_repo(repo_url):
         print("Error: ", str(e))
         return None
 
-def get_repo_last_commits():
-    pass
+def get_repo_last_commits(repo, no_commits):
+    prev_commits = list(repo.iter_commits(all=True, max_count=no_commits))
+    print(prev_commits)
 
 def scan_secrets(repo_path, no_commits, output_file):
     print("-" * 40)
@@ -49,11 +50,16 @@ def scan_secrets(repo_path, no_commits, output_file):
         print(repo)
         # Start scanning with LLM
         llm_scan()
+        get_repo_last_commits(repo, no_commits)
     else:
         if check_repo_exists(repo_path):
             print("Repository exists locally and has .git folder")
+            repo = Repo(repo_path)
+            print(repo)
             # Start scanning with LLM
             llm_scan()
+            get_repo_last_commits(repo, no_commits)
+
         else:
             print("Repository doesn't exist locally or provided path is not a git repo")
             print("Please provide proper repoitory url or clone it yourself!")
