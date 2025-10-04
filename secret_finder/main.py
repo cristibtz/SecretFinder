@@ -45,10 +45,7 @@ def get_repo_last_commits(repo, no_commits):
 # Output results to json file
 def output_to_json(repo_path, output, output_file):
     try:
-        final_output = {
-            "scanned_repo": repo_path,
-            "findings": json.loads(output.replace("```json", "").replace("```", ""))
-        }
+        final_output = json.loads(output.replace("```json", "").replace("```", ""))
         
         with open(output_file, "w") as f:
             json.dump(final_output, f, indent=4)
@@ -127,17 +124,17 @@ def get_commit_files_with_changes(commit):
 
                     if removed_lines:
                         result += " Removed lines:\n"
-                        for line in removed_lines[:10]:
+                        for line in removed_lines[:30]:
                             result += f"    - {line}\n"
-                        if len(removed_lines) > 10:
-                            result += f"    ... and {len(removed_lines) - 10} more removed lines\n"
+                        #if len(removed_lines) > 10:
+                        #    result += f"    ... and {len(removed_lines) - 10} more removed lines\n"
 
                     if added_lines:
                         result += " Added lines:\n"
-                        for line in added_lines[:10]:
+                        for line in added_lines[:30]:
                             result += f"    + {line}\n"
-                        if len(added_lines) > 10:
-                            result += f"    ... and {len(added_lines) - 10} more added lines\n"
+                        #if len(added_lines) > 10:
+                        #    result += f"    ... and {len(added_lines) - 10} more added lines\n"
                 
             except Exception as e:
                 result += f"Error: {str(e)}\n"

@@ -12,6 +12,7 @@ def user_prompt_for(data):
     user_prompt += "Here are the commit diffs to analyze:\n\n"
     user_prompt += data
     return user_prompt
+    
 # Scan diffs with LLM
 def llm_scan(data):
     import asyncio
