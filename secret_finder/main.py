@@ -87,6 +87,7 @@ def get_commit_files_with_changes(commit):
                 print(f"  Error getting stats: {e}")
 
             try:
+                result = ""
                 diff_result = subprocess.run([
                     'git', 'show', '--format=', commit.hexsha, '--', file_name
                 ], capture_output=True, text=True, cwd=commit.repo.working_dir)
@@ -109,15 +110,16 @@ def get_commit_files_with_changes(commit):
                         for line in enumerate[:10]:
                             print(f"    - {line}")
                         if len(removed_lines) > 10:
-                            print(f"    ... and {len(removed_lines) - 10} more removed lines")
-                
+                            result += f"    ... and {len(removed_lines) - 10} more removed lines"
+
                     if added_lines:
                         print(" Added lines:")
                         for line in added_lines[:10]:
                             print(f"    + {line}")
                         if len(added_lines) > 10:
-                            print(f"    ... and {len(added_lines) - 10} more added lines")
+                            result += f"    ... and {len(added_lines) - 10} more added lines"
                 
+                return result
             except Exception as e:
                 print("Error: ", str(e))
     except Exception as e:
@@ -138,7 +140,8 @@ def scan_secrets(repo_path, no_commits, output_file):
 
         prev_commits = get_repo_last_commits(repo, no_commits)
         for commit in prev_commits:
-            get_commit_files_with_changes(commit)
+            result = get_commit_files_with_changes(commit)
+            print(result)
 
         # Start scanning with LLM
         llm_scan()
@@ -150,8 +153,9 @@ def scan_secrets(repo_path, no_commits, output_file):
 
             prev_commits = get_repo_last_commits(repo, no_commits)
             for commit in prev_commits:
-                get_commit_files_with_changes(commit)
-            
+                result = get_commit_files_with_changes(commit)
+                print(result)
+
             # Start scanning with LLM
             llm_scan()
         else:
