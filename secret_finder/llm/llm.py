@@ -20,7 +20,7 @@ def llm_scan(data):
     system_message += "Always look for hardcoded secrets in added or delete lines of code, like API keys, passwords, tokens, private keys, etc. "
     system_message += "Ignore placeholder values for secrets and only focus on secrets that look real. "
     system_message += "Respond in JSON format and include the following fields: commit hash, file path, line/offset or snippet, finding type, and a brief rationale/confidence. "
-    system_message += "If no secrets are found, respond with 'No secrets found'"
+    system_message += "If no secrets are found, you must respond with JSON response {'result': 'No secrets found'}"
 
     agent = Agent(
         'openai:gpt-5',

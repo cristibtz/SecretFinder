@@ -45,10 +45,13 @@ def get_repo_last_commits(repo, no_commits):
 # Output results to json file
 def output_to_json(repo_path, output, output_file):
     try:
-        json_data = json.loads(output.replace("```json", "").replace("```", ""))
-
+        final_output = {
+            "scanned_repo": repo_path,
+            "findings": json.loads(output.replace("```json", "").replace("```", ""))
+        }
+        
         with open(output_file, "w") as f:
-            f.write(output)
+            json.dump(final_output, f, indent=4)
 
         print(f"Output saved to {output_file}")
 
@@ -155,7 +158,7 @@ def scan_secrets(repo_path, no_commits, output_file):
     result = ""
 
     if repo_path.startswith("https://") or repo_path.startswith("git@") and repo_path.endswith(".git"):
-        
+
         print("Repository URL detected")
 
         repo = clone_repo(repo_path)
@@ -189,8 +192,8 @@ def scan_secrets(repo_path, no_commits, output_file):
             output_to_json(repo_path, result, output_file)
 
         else:
-            print("Repository doesn't exist locally or provided path is not a git repo")
-            print("Please provide proper repoitory url or clone it yourself!")
+            print("Repository doesn't exist locally or the provided path is not a git repository")
+            print("Please provide proper a repository URL or clone it yourself!")
 
 def main():
     parser = argparse.ArgumentParser(description="Secret Finder Tool")
