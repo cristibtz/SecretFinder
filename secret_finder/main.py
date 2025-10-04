@@ -4,12 +4,14 @@ import os
 from secret_finder.llm.llm import llm_scan
 import json
 
+# Check if repo path exists locally
 def check_repo_exists(repo_path):
     if os.path.isdir(repo_path) and os.path.isdir(f"{repo_path}/.git/"):
         return True
     else:
         return False
 
+# Clone the repo and save it in /tmp
 def clone_repo(repo_url):
     try:
 
@@ -23,7 +25,7 @@ def clone_repo(repo_url):
 
         repo = Repo.clone_from(repo_url, local_path)   
 
-        print("Repo cloned")
+        print("Repository cloned successfully in: ", local_path)
 
         return repo 
 
@@ -31,6 +33,7 @@ def clone_repo(repo_url):
         print("Error: ", str(e))
         return None
 
+# Get last n commits
 def get_repo_last_commits(repo, no_commits):
     try:
         prev_commits = list(repo.iter_commits(all=True, max_count=no_commits))
@@ -39,6 +42,7 @@ def get_repo_last_commits(repo, no_commits):
     except Exception as e:
         print("Error: ", str(e))
 
+# Output results to json file
 def output_to_json(repo_path, output, output_file):
     try:
         json_data = json.loads(output.replace("```json", "").replace("```", ""))
@@ -51,6 +55,7 @@ def output_to_json(repo_path, output, output_file):
     except Exception as e:
         print("Error: ", str(e))
 
+# Get commit file changes(Added, Deleted, Modified, Renamed) along with line changes
 def get_commit_files_with_changes(commit):
     result = ""
     try:
@@ -138,6 +143,7 @@ def get_commit_files_with_changes(commit):
     except Exception as e:
         return f"Error: {str(e)}"
 
+# Scan secrets function that aggregates all functionalities
 def scan_secrets(repo_path, no_commits, output_file):
     print("-" * 40)
     print(f"Scanning repository: {repo_path}")
@@ -149,29 +155,37 @@ def scan_secrets(repo_path, no_commits, output_file):
     result = ""
 
     if repo_path.startswith("https://") or repo_path.startswith("git@") and repo_path.endswith(".git"):
+        
         print("Repository URL detected")
-        repo = clone_repo(repo_path)
-        print(repo)
 
+        repo = clone_repo(repo_path)
+
+        print("Gathering commits and diffs...")
         prev_commits = get_repo_last_commits(repo, no_commits)
         for commit in prev_commits:
             result += get_commit_files_with_changes(commit)
 
+        print("Analyzing diffs with LLM...")
         result = llm_scan(result)
 
+        print("Saving results to JSON...")
         output_to_json(repo_path, result, output_file)
 
     else:
         if check_repo_exists(repo_path):
             print("Repository exists locally and has .git folder")
+
             repo = Repo(repo_path)
 
+            print("Gathering commits and diffs...")
             prev_commits = get_repo_last_commits(repo, no_commits)
             for commit in prev_commits:
                 result += get_commit_files_with_changes(commit)
 
+            print("Analyzing diffs with LLM...")
             result = llm_scan(result)
 
+            print("Saving results to JSON...")
             output_to_json(repo_path, result, output_file)
 
         else:
