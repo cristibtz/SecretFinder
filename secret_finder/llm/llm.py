@@ -6,16 +6,6 @@ import os
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 
-class SecretFinding(BaseModel):
-    commit_hash: str
-    file_path: str
-    snippet: str
-    finding_type: str
-    confidence: str
-
-class ScanResult(BaseModel):
-    findings: List[SecretFinding]
-
 def user_prompt_for(data):
     user_prompt = "Analyze the following git commit diffs and identify any potential hardcoded secrets such as API keys, passwords, tokens, or private keys. "
     user_prompt += "Provide your response in JSON format with the following fields: commit hash, file path, line/offset or snippet, finding type, and a brief rationale/confidence.\n\n"
