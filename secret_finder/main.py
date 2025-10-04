@@ -1,9 +1,8 @@
 import argparse
 from git import *
 import os
-
-def llm_scan():
-    pass
+from secret_finder.llm.llm import llm_scan
+import json
 
 def check_repo_exists(repo_path):
     if os.path.isdir(repo_path) and os.path.isdir(f"{repo_path}/.git/"):
@@ -40,54 +39,67 @@ def get_repo_last_commits(repo, no_commits):
     except Exception as e:
         print("Error: ", str(e))
 
+def output_to_json(repo_path, output, output_file):
+    try:
+        json_data = json.loads(output.replace("```json", "").replace("```", ""))
+
+        with open(output_file, "w") as f:
+            f.write(output)
+
+        print(f"Output saved to {output_file}")
+
+    except Exception as e:
+        print("Error: ", str(e))
+
 def get_commit_files_with_changes(commit):
+    result = ""
     try:
         if len(commit.parents) == 0:
-            return commit.diff(None)
+            empty_tree = commit.repo.tree('4b825dc642cb6eb9a060e54bf8d69288fbee4904')
+            diff = empty_tree.diff(commit.tree)
         else:
-            diff = commit.diff(commit.parents[0])
+            diff = commit.parents[0].diff(commit)
 
-        print(f"\n--- Commmit: {commit.hexsha[:8]} ---")
-        print(f"Author: {commit.author.name}")
-        print(f"Message: {commit.message.strip()}")
-        print(f"Files changed: {len(diff)}")
+        result += f"\n--- Commmit: {commit.hexsha[:8]} ---\n"
+        result += f"Author: {commit.author.name}\n"
+        result += f"Message: {commit.message.strip()}\n"
+        result += f"Files changed: {len(diff)}\n"
 
         for change in diff:
             file_name = change.a_path if change.a_path else change.b_path
-            print(f"\nFile '{file_name}':")
+            result += f"\nFile '{file_name}':\n"
 
             if change.change_type == "A":
-                print(" Status: Added")
+                result += " Status: Added\n"
             elif change.change_type == "D":
-                print(" Status: Deleted")
+                result += " Status: Deleted\n"
             elif change.change_type == "M":
-                print(" Status: Modified")
+                result += " Status: Modified\n"
             elif change.change_type == "R":
-                print(f" Status: Renamed from {change.a_path} to {change.b_path}")
+                result += f" Status: Renamed from {change.a_path} to {change.b_path}\n"
             
             try:
                 import subprocess
-                result = subprocess.run([
+                subprocess_result = subprocess.run([
                     'git', 'show', '--numstat', '--format=', commit.hexsha, '--', file_name
                 ], capture_output=True, text=True, cwd=commit.repo.working_dir)
                 
-                if result.returncode == 0 and result.stdout.strip():
+                if subprocess_result.returncode == 0 and subprocess_result.stdout.strip():
 
-                    parts = result.stdout.strip().split('\t')
+                    parts = subprocess_result.stdout.strip().split('\t')
                     if len(parts) >= 2:
                         additions = parts[0] if parts[0] != '-' else '0'
                         deletions = parts[1] if parts[1] != '-' else '0'
-                        print(f" Added lines: {additions}")
-                        print(f" Removed lines: {deletions}")
+                        result += f" Added lines: {additions}\n"
+                        result += f" Removed lines: {deletions}\n"
                     else:
-                        print("  Binary file or no changes detected")
+                        result += "  Binary file or no changes detected\n"
                 else:
-                    print("  Could not get line count")
+                    result += "  Could not get line count\n"
             except Exception as e:
-                print(f"  Error getting stats: {e}")
+                result += f"  Error getting stats: {e}\n"
 
             try:
-                result = ""
                 diff_result = subprocess.run([
                     'git', 'show', '--format=', commit.hexsha, '--', file_name
                 ], capture_output=True, text=True, cwd=commit.repo.working_dir)
@@ -106,24 +118,25 @@ def get_commit_files_with_changes(commit):
                             removed_lines.append(line[1:])
 
                     if removed_lines:
-                        print(" Removed lines:")
-                        for line in enumerate[:10]:
-                            print(f"    - {line}")
+                        result += " Removed lines:\n"
+                        for line in removed_lines[:10]:
+                            result += f"    - {line}\n"
                         if len(removed_lines) > 10:
-                            result += f"    ... and {len(removed_lines) - 10} more removed lines"
+                            result += f"    ... and {len(removed_lines) - 10} more removed lines\n"
 
                     if added_lines:
-                        print(" Added lines:")
+                        result += " Added lines:\n"
                         for line in added_lines[:10]:
-                            print(f"    + {line}")
+                            result += f"    + {line}\n"
                         if len(added_lines) > 10:
-                            result += f"    ... and {len(added_lines) - 10} more added lines"
+                            result += f"    ... and {len(added_lines) - 10} more added lines\n"
                 
-                return result
             except Exception as e:
-                print("Error: ", str(e))
+                result += f"Error: {str(e)}\n"
+        
+        return result
     except Exception as e:
-        print("Error: ", str(e))
+        return f"Error: {str(e)}"
 
 def scan_secrets(repo_path, no_commits, output_file):
     print("-" * 40)
@@ -133,6 +146,8 @@ def scan_secrets(repo_path, no_commits, output_file):
     print("-" * 40)
     print("\n")
 
+    result = ""
+
     if repo_path.startswith("https://") or repo_path.startswith("git@") and repo_path.endswith(".git"):
         print("Repository URL detected")
         repo = clone_repo(repo_path)
@@ -140,36 +155,34 @@ def scan_secrets(repo_path, no_commits, output_file):
 
         prev_commits = get_repo_last_commits(repo, no_commits)
         for commit in prev_commits:
-            result = get_commit_files_with_changes(commit)
-            print(result)
+            result += get_commit_files_with_changes(commit)
 
-        # Start scanning with LLM
-        llm_scan()
+        result = llm_scan(result)
+
+        output_to_json(repo_path, result, output_file)
+
     else:
         if check_repo_exists(repo_path):
             print("Repository exists locally and has .git folder")
             repo = Repo(repo_path)
-            print(repo)
 
             prev_commits = get_repo_last_commits(repo, no_commits)
             for commit in prev_commits:
-                result = get_commit_files_with_changes(commit)
-                print(result)
+                result += get_commit_files_with_changes(commit)
 
-            # Start scanning with LLM
-            llm_scan()
+            result = llm_scan(result)
+
+            output_to_json(repo_path, result, output_file)
+
         else:
             print("Repository doesn't exist locally or provided path is not a git repo")
             print("Please provide proper repoitory url or clone it yourself!")
-
-
 
 def main():
     parser = argparse.ArgumentParser(description="Secret Finder Tool")
     parser.add_argument("--repo", type=str, required=True, help="path/url to the repository")
     parser.add_argument("--n", type=int, help="number of commits to scan", default=10)
     parser.add_argument("--out", type=str, help="output file path", default="output.json")
-
     args = parser.parse_args()
 
     repo_path = args.repo
