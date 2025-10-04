@@ -5,7 +5,7 @@ from typing import List
 import os
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
-
+password="adfu9fcn27857238579028905"
 def user_prompt_for(data):
     user_prompt = "Analyze the following git commit diffs and identify any potential hardcoded secrets such as API keys, passwords, tokens, or private keys. "
     user_prompt += "Provide your response in JSON format with the following fields: commit hash, file path, line/offset or snippet, finding type, and a brief rationale/confidence.\n\n"
